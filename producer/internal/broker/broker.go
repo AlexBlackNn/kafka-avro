@@ -98,7 +98,7 @@ func (b *Broker) Close() {
 // Send sends serialized message to kafka using schema registry
 func (b *Broker) Send(msg dto.User, topic string, key string) error {
 	b.log.Info("sending message", "msg", msg)
-	payload, err := b.serializer.Serialize(topic, msg)
+	payload, err := b.serializer.Serialize(topic, &msg)
 	if err != nil {
 		return err
 	}
