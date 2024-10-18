@@ -103,6 +103,7 @@ func (b *Broker) Send(msg dto.User, topic string, key string) error {
 		return err
 	}
 	err = b.producer.Produce(&kafka.Message{
+		Key:            []byte(key),
 		TopicPartition: kafka.TopicPartition{Topic: &topic, Partition: kafka.PartitionAny},
 		Value:          payload,
 		Headers:        []kafka.Header{{Key: "Course", Value: []byte("Kafka")}},
