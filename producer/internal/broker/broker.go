@@ -44,28 +44,30 @@ func New(cfg *config.Config, log *slog.Logger) (*Broker, error) {
 
 	// Delivery report handler for produced messages
 	go func() {
-		for e := range p.Events() {
-			switch e := e.(type) {
-			// https://github.com/confluentinc/confluent-kafka-go/blob/master/examples/producer_example/producer_example.go
-			case *kafka.Message:
-				// The message delivery report, indicating success or
-				// permanent failure after retries have been exhausted.
-				// Application level retries won't help since the client
-				// is already configured to do that.
-				if e.TopicPartition.Error != nil {
-					log.Error("sending message finished with failure", "err", e.TopicPartition.Error, "key", string(e.Key))
-					continue
+		for {
+			for e := range p.Events() {
+				switch e := e.(type) {
+				// https://github.com/confluentinc/confluent-kafka-go/blob/master/examples/producer_example/producer_example.go
+				case *kafka.Message:
+					// The message delivery report, indicating success or
+					// permanent failure after retries have been exhausted.
+					// Application level retries won't help since the client
+					// is already configured to do that.
+					if e.TopicPartition.Error != nil {
+						log.Error("sending message finished with failure", "err", e.TopicPartition.Error, "key", string(e.Key))
+						continue
+					}
+					log.Info("sending message finished with success ", "key", string(e.Key))
+				case kafka.Error:
+					// Generic client instance-level errors, such as
+					// broker connection failures, authentication issues, etc.
+					//
+					// These errors should generally be considered informational
+					// as the underlying client will automatically try to
+					// recover from any errors encountered, the application
+					// does not need to take action on them.
+					log.Error("kafka general error", "err", e.Error())
 				}
-				log.Info("sending message finished with success ", "key", string(e.Key))
-			case kafka.Error:
-				// Generic client instance-level errors, such as
-				// broker connection failures, authentication issues, etc.
-				//
-				// These errors should generally be considered informational
-				// as the underlying client will automatically try to
-				// recover from any errors encountered, the application
-				// does not need to take action on them.
-				log.Error("kafka general error", "err", e.Error())
 			}
 		}
 	}()
@@ -100,7 +102,6 @@ func (b *Broker) Send(msg dto.User, topic string, key string) error {
 	if err != nil {
 		return err
 	}
-
 	err = b.producer.Produce(&kafka.Message{
 		TopicPartition: kafka.TopicPartition{Topic: &topic, Partition: kafka.PartitionAny},
 		Value:          payload,

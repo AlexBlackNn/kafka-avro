@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"log"
 	"log/slog"
 	"time"
 
@@ -19,6 +20,7 @@ type sendCloser interface {
 type App struct {
 	ServerProducer sendCloser
 	log            *slog.Logger
+	Cfg            *config.Config
 }
 
 func New() (*App, error) {
@@ -34,6 +36,7 @@ func New() (*App, error) {
 	return &App{
 		ServerProducer: producer,
 		log:            log,
+		Cfg:            cfg,
 	}, nil
 }
 
@@ -50,7 +53,10 @@ func (a *App) Start(ctx context.Context) {
 				Favorite_color:  "blue",
 			}
 
-			a.ServerProducer.Send(value, "users", "53")
+			err := a.ServerProducer.Send(value, "users", "53")
+			if err != nil {
+				log.Fatal(err.Error())
+			}
 			time.Sleep(time.Second)
 		}
 	}

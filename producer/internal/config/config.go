@@ -2,6 +2,7 @@ package config
 
 import (
 	"flag"
+	"fmt"
 	"os"
 
 	"github.com/ilyakaznacheev/cleanenv"
@@ -16,6 +17,13 @@ type Config struct {
 	// without this param will be used "local" as param value
 	Env   string      `yaml:"env" env-default:"local"`
 	Kafka KafkaConfig `yaml:"kafka"`
+}
+
+func (c *Config) String() string {
+	return fmt.Sprintf(
+		"env: %s, kafka url %s, schema registry url %s",
+		c.Env, c.Kafka.KafkaURL, c.Kafka.SchemaRegistryURL,
+	)
 }
 
 func New() *Config {
