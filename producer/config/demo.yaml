@@ -1,0 +1,34 @@
+env: "demo" #demo, prod
+storage_patroni:
+  master: "postgresql://postgres:postgres@haproxy:5000/postgres"
+  slave: "postgresql://postgres:postgres@haproxy:5001/postgres"
+access_token_ttl: 1h
+refresh_token_ttl: 240h # 10 days
+service_secret: "service very secret"
+grpc:
+  port: 44044
+  timeout: 10h
+redis_sentinel:
+  masterName: "mymaster"
+  sentinelAddrs1: "redis_sentinel1:26379"
+  sentinelAddrs2: "redis_sentinel2:26380"
+  sentinelAddrs3: "redis_sentinel3:26381"
+  password: "123456"
+jaeger_url: "http://jaeger:14268/api/traces"
+rate_limit: 10000
+address: ":8001"
+kafka:
+  kafkaUrl: "kafka-0:9092"
+  schemaRegistryURL: "http://schema-registry:8081"
+server_timeout:
+  readTimeout: 10
+  writeTimeout: 10
+  idleTimeout: 10
+server_handlers_timeouts:
+  loginTimeoutMs: 5000
+  logoutTimeoutMs: 300
+  registerTimeoutMs: 5000
+  refreshTimeoutMs: 300
+sso_address: sso_grpc_loadbalancer:80
+#sso_address: sso:44044
+

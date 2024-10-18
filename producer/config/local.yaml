@@ -1,0 +1,29 @@
+env: "local" #demo, prod
+storage_patroni:
+  master: "postgresql://postgres:postgres@127.0.0.1:5000/postgres"
+  slave: "postgresql://postgres:postgres@127.0.0.1:5001/postgres"
+access_token_ttl: 1h
+refresh_token_ttl: 240h # 10 days
+service_secret: "service very secret"
+redis_sentinel:
+  masterName: "mymaster"
+  sentinelAddrs1: "localhost:26379"
+  sentinelAddrs2: "localhost:26380"
+  sentinelAddrs3: "localhost:26381"
+  password: "123456"
+jaeger_url: "http://localhost:14268/api/traces"
+rate_limit: 10000
+address: ":8001"
+kafka:
+  kafkaUrl: "localhost:9094"
+  schemaRegistryURL: "http://localhost:8081"
+server_timeout:
+  readTimeout: 10
+  writeTimeout: 10
+  idleTimeout: 10
+server_handlers_timeouts:
+  loginTimeoutMs: 5000
+  logoutTimeoutMs: 300
+  registerTimeoutMs: 5000
+  refreshTimeoutMs: 300
+sso_address: localhost:44044 # work with server p2p (localhost:8091 to connect via grpc balancer sso must be run in docker in that case!!!)

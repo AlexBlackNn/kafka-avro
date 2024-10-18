@@ -1,0 +1,91 @@
+# See: https://taskfile.dev/api/
+
+version: "3"
+
+tasks:
+  grpc:
+    aliases:
+      - grpc
+    desc: "Generate code from proto files to grpc"
+    cmds:
+      - protoc -I proto proto/sso/sso.proto --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative
+      - mv sso/* proto/sso/gen
+      - rm -r sso
+  kafka-data-v1:
+    aliases:
+      - proto
+    desc: "Generate code from proto files for kafka"
+    cmds:
+      - protoc -I proto proto/registration.v1/registration.proto --go_out=proto/registration.v1/ --go_opt=paths=source_relative --go-grpc_out=proto/registration.v1/ --go-grpc_opt=paths=source_relative
+  sso-swagger:
+    aliases:
+      - sso-swag
+    desc: "Generate swag"
+    cmds:
+      - cd ../sso && swag init -g ./cmd/sso/main.go -o ./cmd/sso/docs
+  loyalty-swagger:
+    aliases:
+      - loyalty-swag
+    desc: "Generate swag"
+    cmds:
+    - cd ../loyalty && swag init -g ./cmd/main.go -o ./cmd/docs
+  easy-json:
+    aliases:
+      - easy
+    desc: "Generate easy-json"
+    cmds:
+      - easyjson -all ../sso/internal/dto/dto.go
+  migrate:
+    aliases:
+      - migrate
+    desc: "Make migrations"
+    cmds:
+      - cd .. && go run ./cmd/migrator/postgres  --p ./migrations -d postgres://postgres:postgres@localhost:5000/postgres?sslmode=disable
+  run-integration-tests:
+    aliases:
+      - integration-tests
+    desc: "Run integration tests"
+    cmds:
+      - ./run.sso.integration.tests.sh
+  run-unit-tests:
+    aliases:
+      - unit-tests
+    desc: "Run unit tests"
+    cmds:
+      - ./run.sso.unit.tests.sh
+  run-local:
+    aliases:
+      - local
+    desc: "run local sso service"
+    cmds:
+      - ./run.sso.local.sh
+  run-demo:
+    aliases:
+      - demo
+    desc: "run demo sso service"
+    cmds:
+      - ./run.sso.demo.sh
+  run-local-consumer:
+    aliases:
+      - consumer
+    desc: "run local kafka consumer for tests"
+    cmds:
+      - cd .. && go run ./sso/kafka_consumer/main.go --config=./sso/config/local.yaml
+  create-sso-mocks:
+    aliases:
+      - sso-mocks
+    desc: "create mocks for sso infra"
+    cmds:
+      - mockgen -source=../sso/internal/services/authservice/auth.go -destination=../sso/tests/unit_tests/mocks/mock_infra.go -package=mocks UserStorage,TokenStorage,HealthChecker,SendCloser
+  create-loyalty-mocks:
+    aliases:
+      - loyalty-mocks
+    desc: "create mocks for loyalty infra"
+    cmds:
+      - mockgen -source=../loyalty/internal/services/loyaltyservice/loyalty.go -destination=../loyalty/tests/unit_tests/mocks/mock_infra.go -package=mocks loyaltyStorage,loyaltyBroker
+  run-demo-sso-scale:
+    aliases:
+      - demo-scale
+    desc: "run demo 2 sso service"
+    cmds:
+      - ./run.sso.demo.scale.sh
