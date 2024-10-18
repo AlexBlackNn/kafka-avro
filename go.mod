@@ -3,7 +3,6 @@ module github.com/AlexBlackNn/kafka-avro
 go 1.22
 
 require (
-	github.com/AlexBlackNn/authloyalty v0.0.0-20240903044915-389023dc9406
 	github.com/XSAM/otelsql v0.35.0
 	github.com/confluentinc/confluent-kafka-go v1.9.2
 	github.com/confluentinc/confluent-kafka-go/v2 v2.6.0
