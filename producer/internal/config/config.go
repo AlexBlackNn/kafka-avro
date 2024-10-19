@@ -1,6 +1,7 @@
 package config
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -8,9 +9,15 @@ import (
 	"github.com/ilyakaznacheev/cleanenv"
 )
 
+var (
+	ErrAbsentConfigFile = errors.New("config file does not exists")
+	ErrReadConfigFailed = errors.New("reading config file failed")
+)
+
 type KafkaConfig struct {
 	KafkaURL          string `yaml:"kafkaUrl" env-required:"true"`
 	SchemaRegistryURL string `yaml:"schemaRegistryURL" env-required:"true"`
+	Type              string
 }
 
 type Config struct {
@@ -26,38 +33,43 @@ func (c *Config) String() string {
 	)
 }
 
-func New() *Config {
-	configPath := fetchConfigPath()
+// New loads config
+func New() (*Config, error) {
+	cfg := &Config{}
+	var err error
+	var configPath string
+	var kafkaClientType string
+	// kafka client type  - producer or consumer
+	flag.StringVar(&kafkaClientType, "t", "producer", "type of kafka client")
+	// path to config yaml file
+	flag.StringVar(&configPath, "c", "", "path to config file")
+	flag.Parse()
 	if configPath == "" {
-		panic("config path is empty")
+		configPath = os.Getenv("CONFIG_PATH")
 	}
-
-	return MustLoadByPath(configPath)
+	if configPath != "" {
+		cfg, err = LoadByPath(configPath)
+		if err != nil {
+			return nil, err
+		}
+		cfg.Kafka.Type = kafkaClientType
+		return cfg, nil
+	}
+	return cfg, nil
 }
 
-func MustLoadByPath(configPath string) *Config {
-	if _, err := os.Stat(configPath); os.IsNotExist(err) {
-		panic("config file does not exists: " + configPath)
+// LoadByPath loads config by path
+func LoadByPath(configPath string) (*Config, error) {
+	_, err := os.Stat(configPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, ErrAbsentConfigFile
+		}
+		return nil, fmt.Errorf("LoadByPath stat error: %w", err)
 	}
-
 	var cfg Config
 	if err := cleanenv.ReadConfig(configPath, &cfg); err != nil {
-		panic("failed to read config " + err.Error())
+		return nil, ErrReadConfigFailed
 	}
-	return &cfg
-}
-
-// fetchConfigPath fetches config path from command line flag or env var
-// Priority: flag -> env -> default
-// Default value is empty string
-func fetchConfigPath() string {
-	var res string
-	// --config="path/to/config.yaml"
-	flag.StringVar(&res, "config", "", "path to config file")
-	flag.Parse()
-
-	if res == "" {
-		res = os.Getenv("CONFIG_PATH")
-	}
-	return res
+	return &cfg, nil
 }

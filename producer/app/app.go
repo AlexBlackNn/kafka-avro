@@ -25,7 +25,10 @@ type App struct {
 
 func New() (*App, error) {
 
-	cfg := config.New()
+	cfg, err := config.New()
+	if err != nil {
+		log.Fatal(err)
+	}
 	log := logger.New(cfg.Env)
 
 	producer, err := broker.New(cfg, log)
