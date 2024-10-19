@@ -1,4 +1,4 @@
-package broker
+package producer
 
 import (
 	"log/slog"
@@ -24,8 +24,8 @@ type Response struct {
 
 var FlushBrokerTimeMs = 100
 
-// NewProducer returns kafka producer with schema registry
-func NewProducer(cfg *config.Config, log *slog.Logger) (*Broker, error) {
+// New returns kafka producer with schema registry
+func New(cfg *config.Config, log *slog.Logger) (*Broker, error) {
 	p, err := kafka.NewProducer(&kafka.ConfigMap{"bootstrap.servers": cfg.Kafka.KafkaURL})
 	if err != nil {
 		return nil, err

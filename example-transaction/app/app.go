@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 
+	"github.com/AlexBlackNn/kafka-avro/example-transaction/app/consumer"
 	"github.com/AlexBlackNn/kafka-avro/example-transaction/app/producer"
 	"github.com/AlexBlackNn/kafka-avro/example-transaction/internal/config"
 	"github.com/AlexBlackNn/kafka-avro/example-transaction/internal/logger"
@@ -25,6 +26,9 @@ func Fabric() (StartGetConfigStopper, error) {
 	log := logger.New(cfg.Env)
 	if cfg.Kafka.Type == "producer" {
 		return producer.New(cfg, log)
+	}
+	if cfg.Kafka.Type == "consumer" {
+		return consumer.New(cfg, log)
 	}
 	return nil, ErrWrongType
 }

@@ -7,4 +7,5 @@ gogen-avro --package=kafkapracticum --containers=false --sources-comment=false -
 
 
 go run ./example-transaction/cmd/main.go -c ./example-transaction/config/local.yaml -t producer
+go run ./example-transaction/cmd/main.go -c ./example-transaction/config/local.yaml -t consumer
 

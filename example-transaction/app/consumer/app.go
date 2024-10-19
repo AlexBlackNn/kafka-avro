@@ -1,4 +1,4 @@
-package producer
+package consumer
 
 import (
 	"context"
@@ -6,31 +6,30 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/AlexBlackNn/kafka-avro/example-transaction/internal/broker/producer"
+	consumer "github.com/AlexBlackNn/kafka-avro/example-transaction/internal/broker/consumer"
 	"github.com/AlexBlackNn/kafka-avro/example-transaction/internal/config"
-	"github.com/AlexBlackNn/kafka-avro/example-transaction/internal/dto"
 )
 
-type sendCloser interface {
-	Send(msg dto.User, topic string, key string) error
-	Close()
+type consumeCloser interface {
+	Consume() error
+	Close() error
 }
 
 type App struct {
-	ServerProducer sendCloser
+	ServerConsumer consumeCloser
 	log            *slog.Logger
 	Cfg            *config.Config
 }
 
 func New(cfg *config.Config, log *slog.Logger) (*App, error) {
 
-	prod, err := producer.New(cfg, log)
+	cons, err := consumer.New(cfg, log)
 	if err != nil {
 		return nil, err
 	}
 
 	return &App{
-		ServerProducer: prod,
+		ServerConsumer: cons,
 		log:            log,
 		Cfg:            cfg,
 	}, nil
@@ -43,13 +42,7 @@ func (a *App) Start(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		default:
-			value := dto.User{
-				Name:            "First user",
-				Favorite_number: 42,
-				Favorite_color:  "blue",
-			}
-
-			err := a.ServerProducer.Send(value, "users", "53")
+			err := a.ServerConsumer.Consume()
 			if err != nil {
 				log.Fatal(err.Error())
 			}
@@ -60,7 +53,10 @@ func (a *App) Start(ctx context.Context) {
 
 func (a *App) Stop() {
 	a.log.Info("close kafka client")
-	a.ServerProducer.Close()
+	err := a.ServerConsumer.Close()
+	if err != nil {
+		a.log.Error(err.Error())
+	}
 }
 
 func (a *App) GetConfig() string {
