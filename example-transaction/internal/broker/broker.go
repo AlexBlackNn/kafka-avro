@@ -1,7 +1,6 @@
 package broker
 
 import (
-	"errors"
 	"log/slog"
 
 	"github.com/AlexBlackNn/kafka-avro/example-transaction/internal/config"
@@ -24,10 +23,9 @@ type Response struct {
 }
 
 var FlushBrokerTimeMs = 100
-var ErrKafka = errors.New("kafka broker failed")
 
-// New returns kafka producer with schema registry
-func New(cfg *config.Config, log *slog.Logger) (*Broker, error) {
+// NewProducer returns kafka producer with schema registry
+func NewProducer(cfg *config.Config, log *slog.Logger) (*Broker, error) {
 	p, err := kafka.NewProducer(&kafka.ConfigMap{"bootstrap.servers": cfg.Kafka.KafkaURL})
 	if err != nil {
 		return nil, err

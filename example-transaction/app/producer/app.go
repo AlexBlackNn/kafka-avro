@@ -24,7 +24,7 @@ type App struct {
 
 func New(cfg *config.Config, log *slog.Logger) (*App, error) {
 
-	producer, err := broker.New(cfg, log)
+	producer, err := broker.NewProducer(cfg, log)
 	if err != nil {
 		return nil, err
 	}
