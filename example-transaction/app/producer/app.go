@@ -9,7 +9,6 @@ import (
 	"github.com/AlexBlackNn/kafka-avro/example-transaction/internal/broker"
 	"github.com/AlexBlackNn/kafka-avro/example-transaction/internal/config"
 	"github.com/AlexBlackNn/kafka-avro/example-transaction/internal/dto"
-	"github.com/AlexBlackNn/kafka-avro/example-transaction/internal/logger"
 )
 
 type sendCloser interface {
@@ -23,13 +22,7 @@ type App struct {
 	Cfg            *config.Config
 }
 
-func New() (*App, error) {
-
-	cfg, err := config.New()
-	if err != nil {
-		log.Fatal(err)
-	}
-	log := logger.New(cfg.Env)
+func New(cfg *config.Config, log *slog.Logger) (*App, error) {
 
 	producer, err := broker.New(cfg, log)
 	if err != nil {
@@ -68,4 +61,8 @@ func (a *App) Start(ctx context.Context) {
 func (a *App) Stop() {
 	a.log.Info("close kafka client")
 	a.ServerProducer.Close()
+}
+
+func (a *App) GetConfig() string {
+	return a.Cfg.String()
 }

@@ -6,16 +6,16 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/AlexBlackNn/kafka-avro/example-transaction/app/producer"
+	"github.com/AlexBlackNn/kafka-avro/example-transaction/app"
 )
 
 func main() {
 
-	application, err := producer.New()
+	application, err := app.Fabric()
 	if err != nil {
 		log.Fatal(err)
 	}
-	log.Printf("application starts %s with cfg %s \n", application.Cfg.Kafka.Type, application.Cfg)
+	log.Printf("application starts with cfg %s \n", application.GetConfig())
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT)
 	defer cancel()
 	application.Start(ctx)
