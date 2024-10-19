@@ -6,12 +6,12 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/AlexBlackNn/kafka-avro/producer/app"
+	"github.com/AlexBlackNn/kafka-avro/example-transaction/app/producer"
 )
 
 func main() {
 
-	application, err := app.New()
+	application, err := producer.New()
 	if err != nil {
 		log.Fatal(err)
 	}

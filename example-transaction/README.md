@@ -6,4 +6,5 @@ gogen-avro
 gogen-avro --package=kafkapracticum --containers=false --sources-comment=false --short-unions=false /home/user/Dev/kafka-avro/producer/cmd /home/user/Dev/kafka-avro/producer/cmd/user.avsc
 
 
-go run ./producer/cmd/main.go -c ./producer/config/local.yaml -t producer
+go run ./example-transaction/cmd/main.go -c ./example-transaction/config/local.yaml -t producer
+

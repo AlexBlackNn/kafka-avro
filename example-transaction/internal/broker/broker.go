@@ -4,8 +4,8 @@ import (
 	"errors"
 	"log/slog"
 
-	"github.com/AlexBlackNn/kafka-avro/producer/internal/config"
-	"github.com/AlexBlackNn/kafka-avro/producer/internal/dto"
+	"github.com/AlexBlackNn/kafka-avro/example-transaction/internal/config"
+	"github.com/AlexBlackNn/kafka-avro/example-transaction/internal/dto"
 	"github.com/confluentinc/confluent-kafka-go/v2/kafka"
 	"github.com/confluentinc/confluent-kafka-go/v2/schemaregistry"
 	"github.com/confluentinc/confluent-kafka-go/v2/schemaregistry/serde"

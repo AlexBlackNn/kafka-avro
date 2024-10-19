@@ -1,4 +1,4 @@
-package app
+package producer
 
 import (
 	"context"
@@ -6,10 +6,10 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/AlexBlackNn/kafka-avro/producer/internal/broker"
-	"github.com/AlexBlackNn/kafka-avro/producer/internal/config"
-	"github.com/AlexBlackNn/kafka-avro/producer/internal/dto"
-	"github.com/AlexBlackNn/kafka-avro/producer/internal/logger"
+	"github.com/AlexBlackNn/kafka-avro/example-transaction/internal/broker"
+	"github.com/AlexBlackNn/kafka-avro/example-transaction/internal/config"
+	"github.com/AlexBlackNn/kafka-avro/example-transaction/internal/dto"
+	"github.com/AlexBlackNn/kafka-avro/example-transaction/internal/logger"
 )
 
 type sendCloser interface {
