@@ -28,8 +28,8 @@ type Config struct {
 
 func (c *Config) String() string {
 	return fmt.Sprintf(
-		"env: %s, kafka url %s, schema registry url %s",
-		c.Env, c.Kafka.KafkaURL, c.Kafka.SchemaRegistryURL,
+		"type: %s, env: %s, kafka url %s, schema registry url %s",
+		c.Kafka.Type, c.Env, c.Kafka.KafkaURL, c.Kafka.SchemaRegistryURL,
 	)
 }
 
