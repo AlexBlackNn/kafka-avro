@@ -50,7 +50,7 @@ func (a *App) Start(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		default:
-
+			// TODO: move this logic to another method
 			fmt.Print("Enter name: ")
 			_, err := fmt.Scanln(&name)
 			if err != nil {
@@ -64,6 +64,7 @@ func (a *App) Start(ctx context.Context) {
 				a.log.Error(err.Error())
 				continue
 			}
+
 			fmt.Print("Enter favorite color: ")
 			_, err = fmt.Scanln(&favoriteColor)
 			if err != nil {
