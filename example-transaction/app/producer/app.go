@@ -77,7 +77,7 @@ func (a *App) Start(ctx context.Context) {
 				Favorite_number: favoriteNumber,
 				Favorite_color:  favoriteColor,
 			}
-
+			// TODO: get topic from config
 			err = a.ServerProducer.Send(value, "users", "53")
 			if err != nil {
 				log.Fatal(err.Error())
