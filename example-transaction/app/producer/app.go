@@ -2,9 +2,9 @@ package producer
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"log/slog"
-	"time"
 
 	"github.com/AlexBlackNn/kafka-avro/example-transaction/internal/broker/producer"
 	"github.com/AlexBlackNn/kafka-avro/example-transaction/internal/config"
@@ -37,23 +37,50 @@ func New(cfg *config.Config, log *slog.Logger) (*App, error) {
 }
 
 func (a *App) Start(ctx context.Context) {
+
+	var (
+		name           string
+		favoriteNumber int64
+		favoriteColor  string
+	)
+
 	a.log.Info("producer starts")
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		default:
-			value := dto.User{
-				Name:            "First user",
-				Favorite_number: 42,
-				Favorite_color:  "blue",
+
+			fmt.Print("Enter name: ")
+			_, err := fmt.Scanln(&name)
+			if err != nil {
+				a.log.Error(err.Error())
+				continue
 			}
 
-			err := a.ServerProducer.Send(value, "users", "53")
+			fmt.Print("Enter favorite number: ")
+			_, err = fmt.Scanln(&favoriteNumber)
+			if err != nil {
+				a.log.Error(err.Error())
+				continue
+			}
+			fmt.Print("Enter favorite color: ")
+			_, err = fmt.Scanln(&favoriteColor)
+			if err != nil {
+				a.log.Error(err.Error())
+				continue
+			}
+
+			value := dto.User{
+				Name:            name,
+				Favorite_number: favoriteNumber,
+				Favorite_color:  favoriteColor,
+			}
+
+			err = a.ServerProducer.Send(value, "users", "53")
 			if err != nil {
 				log.Fatal(err.Error())
 			}
-			time.Sleep(time.Second)
 		}
 	}
 }
