@@ -8,7 +8,7 @@ gogen-avro --package=kafkapracticum --containers=false --sources-comment=false -
 
 
 ```bash
-go run ./cmd/create-topic/main.go localhost:9094 users-1 3 2
+go run ./cmd/create-topic/main.go localhost:9094 users 3 2
 ```
 
 
