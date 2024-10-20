@@ -64,8 +64,8 @@ services:
       - kafka-1
       - kafka-2
     environment:
-      - SCHEMA_REGISTRY_LISTENERS=http://0.0.0.0:8081
-      - SCHEMA_REGISTRY_KAFKA_BROKERS=PLAINTEXT://kafka-0:9092,PLAINTEXT://kafka-1:9092,PLAINTEXT://kafka-2:9092
+      SCHEMA_REGISTRY_LISTENERS: http://0.0.0.0:8081
+      SCHEMA_REGISTRY_KAFKA_BROKERS: PLAINTEXT://kafka-0:9092,PLAINTEXT://kafka-1:9092,PLAINTEXT://kafka-2:9092
     networks:
       - proxynet
    
@@ -75,8 +75,8 @@ services:
     ports:
       - "127.0.0.1:8080:8080"
     environment:
-      - KAFKA_CLUSTERS_0_BOOTSTRAP_SERVERS=kafka-0:9092
-      - KAFKA_CLUSTERS_0_NAME=kraft
+      KAFKA_CLUSTERS_0_BOOTSTRAP_SERVERS: kafka-0:9092
+      KAFKA_CLUSTERS_0_NAME: kraft
     networks:
       - proxynet
 
