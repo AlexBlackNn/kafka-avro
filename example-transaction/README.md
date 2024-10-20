@@ -5,7 +5,10 @@ gogen-avro
 
 gogen-avro --package=kafkapracticum --containers=false --sources-comment=false --short-unions=false /home/user/Dev/kafka-avro/producer/cmd /home/user/Dev/kafka-avro/producer/cmd/user.avsc
 
+```bash
+go run ./cmd/main.go -c ./config/local.yaml -t producer
+```
 
-go run ./example-transaction/cmd/main.go -c ./example-transaction/config/local.yaml -t producer
-go run ./example-transaction/cmd/main.go -c ./example-transaction/config/local.yaml -t consumer
-
+```bash
+go run ./cmd/main.go -c ./config/local.yaml -t consumer
+```
