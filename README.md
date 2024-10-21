@@ -358,7 +358,7 @@ volumes:
 4. В терминале перейдите в каталог, где находится ваш docker-compose.yml файл, и выполните команду:
 
 ```bash
-docker-compose up -d
+docker compose up -d
 ```
 
 5. Для проверки успешности запуска введите в терминале:
@@ -380,6 +380,7 @@ a65bf04f14b8   bitnami/kafka:3.7               "/opt/bitnami/script…"   21 sec
 
 Рассмотрим, фрагмент кода из docker-compose.yaml 
 
+```yaml
 x-kafka-common:
     &kafka-common
     image: bitnami/kafka:3.7
@@ -395,6 +396,7 @@ x-kafka-common:
       KAFKA_CFG_AUTO_CREATE_TOPICS_ENABLE: false
     networks:
       - proxynet
+``` 
 
 Данный фрагмент кода представляет собой конфигурацию для контейнера Apache Kafka, использующего образ bitnami/kafka:3.7. Он определяет общие параметры, которые будут применяться ко всем экземплярам Kafka в кластере. В частности, здесь настраиваются такие важные параметры, как включение режима KRaft (Kafka Raft)  https://habr.com/ru/companies/slurm/articles/685694/ и https://raft.github.io/, который позволяет Kafka работать без Zookeeper, а также параметры безопасности и сетевого взаимодействия.
 
