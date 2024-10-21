@@ -2,6 +2,8 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
+	"io"
 	"log"
 	"os"
 	"sync"
@@ -16,7 +18,6 @@ type Item struct {
 
 // Order - структура описывающая заказ с продуктами
 type Order struct {
-	Offset     int     `json:"offset"`
 	OrderID    string  `json:"order_id"`
 	UserID     string  `json:"user_id"`
 	Items      []Item  `json:"items"`
@@ -26,8 +27,7 @@ type Order struct {
 func main() {
 	var wg sync.WaitGroup
 	orders := []*Order{
-		&Order{
-			Offset:  1,
+		{
 			OrderID: "0001",
 			UserID:  "00001",
 			Items: []Item{
@@ -36,8 +36,7 @@ func main() {
 			},
 			TotalPrice: 500.00,
 		},
-		&Order{
-			Offset:  2,
+		{
 			OrderID: "0002",
 			UserID:  "00002",
 			Items: []Item{
@@ -46,8 +45,7 @@ func main() {
 			},
 			TotalPrice: 1200.00,
 		},
-		&Order{
-			Offset:  3,
+		{
 			OrderID: "0003",
 			UserID:  "00003",
 			Items: []Item{
@@ -59,7 +57,7 @@ func main() {
 	}
 
 	wg.Add(2)
-
+	// продюсер и консьюмер работают параллельно
 	go produce(orders, &wg)
 	go consume(&wg)
 
@@ -97,12 +95,32 @@ func produce(orders []*Order, wg *sync.WaitGroup) {
 
 func consume(wg *sync.WaitGroup) {
 	defer wg.Done()
+
 	// Открываем файл для чтения
 	file, err := os.OpenFile("orders.json", os.O_CREATE|os.O_RDONLY, 0644)
 	if err != nil {
 		log.Fatalln("Ошибка при открытии файла:", err)
 	}
 	defer file.Close()
+
+	// Открываем файл для чтения офсета
+	offsetFile, err := os.OpenFile("offset.txt", os.O_CREATE|os.O_RDWR, 0644)
+	if err != nil {
+		log.Fatalln("Ошибка при открытии файла офсета:", err)
+	}
+	defer offsetFile.Close()
+
+	// Читаем офсет из файла
+	var offset int64
+	if _, err := fmt.Fscanf(offsetFile, "%d", &offset); err != nil && err.Error() != "EOF" {
+		log.Fatalln("Ошибка при чтении офсета:", err)
+	}
+
+	// Устанавливаем офсет для чтения
+	_, err = file.Seek(offset, 0)
+	if err != nil {
+		log.Fatalln("Ошибка при установке офсета:", err)
+	}
 
 	// Читаем файл построчно
 	var order Order
@@ -115,5 +133,18 @@ func consume(wg *sync.WaitGroup) {
 			log.Fatalln("Ошибка при декодировании JSON:", err)
 		}
 		log.Printf("Прочитанный заказ: %+v\n", order)
+
+		// Обновляем офсет
+		offset, err = file.Seek(0, io.SeekCurrent)
+		if err != nil {
+			log.Fatalln("Ошибка при получении текущего офсета:", err)
+		}
+
+		// Записываем новый офсет в файл
+		offsetFile.Truncate(0) // Очищаем файл
+		offsetFile.Seek(0, 0)  // Возвращаемся в начало файла
+		if _, err := fmt.Fprintf(offsetFile, "%d", offset); err != nil {
+			log.Fatalln("Ошибка при записи офсета:", err)
+		}
 	}
 }
