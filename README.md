@@ -1020,6 +1020,23 @@ go run main1.go localhost:9094,localhost:9095,localhost:9096 group test_users
 % Заголовки: [myTestHeader="header values are binary"]
 ```
 
+Задание. 
+Во вкладке test_users нажмите на кнопку  Produce Message в правом верхнем углу и отправьте сообщение в топик. Считайте консьюмером данное сообщение.
+
+<br>
+<details> 
+<summary>Подсказка, пример сообщения (нажмите, чтобы увидеть код)</summary>
+```
+{
+	"name": "First user",
+	"favorite_number": 42,
+	"favorite_color": "blue"
+}
+```
+</details>
+ <br>
+
+
 Вы, вероятно, заметили, что мы не использовали Schema Registry. В этом введении мы не будем подробно его рассматривать, оставив изучение на самостоятельное освоение. Тем не менее, пример его использования можно найти в example-transaction, где сообщение передается в формате Avro, а дополнительную информацию можно получить из [соответствующих источников](https://habr.com/ru/companies/lenta_utkonos_tech/articles/715298/) и [примеров](https://github.com/confluentinc/confluent-kafka-go/tree/master/examples)
 
 
