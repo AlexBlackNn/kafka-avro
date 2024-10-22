@@ -727,7 +727,6 @@ x-kafka-common:
 Напишем код продьюсера
 
 ```go
-// main.go
 package main
 
 import (
@@ -806,7 +805,8 @@ func main() {
 		fmt.Printf("Сообщение отправлено в топик %s [%d] офсет %v\n",
 			*m.TopicPartition.Topic, m.TopicPartition.Partition, m.TopicPartition.Offset)
 	}
-
+	// Закрываем отправителя
+	p.Close()
 	// Не забываем закрыть канал доставки событий
 	close(deliveryChan)
 }
@@ -871,42 +871,48 @@ Delivered message to topic test_users [1] at offset 1
 Отправьте сообщения несколько раз, а затем откройте графический интерфейс для работы с Kafka. В главном окне кликните на название топика "test_users" и перейдите на вкладку "Messages", где вы сможете увидеть отправленные сообщения.
 ![отправленные сообщения](commands/docs/send_mes.png)
 
-Теперь, когда мы убедились, что сообщения успешно доставлены в брокер, давайте научимся считывать данные из него. Напишем код консьюмера.
+Теперь, когда мы убедились, что сообщения успешно доставлены в брокер, давайте научимся считывать данные из него. Но прежде чем написать код консьюмера, ведем еще одно панятие:
 
-```
+*Группы консьюмеров (Consumer group)*. В Kafka потребители объединяются в группы для параллельного чтения данных. Каждый потребитель в группе обрабатывает данные из одной или нескольких уникальных партиций, что гарантирует, что каждое сообщение будет прочитано только одним из потребителей. Группы потребителей позволяют эффективно распределять нагрузку на обработку данных между несколькими участниками и обеспечивают масштабируемость системы по мере увеличения числа потребителей. Если один из потребителей выходит из строя, его партиции автоматически перераспределяются между оставшимися членами группы.
+
+```go
 // main.go
 package main
 
-// consumer_example implements a consumer using the non-channel Poll() API
-// to retrieve messages and events.
-
 import (
+	"encoding/json"
 	"fmt"
+	"log"
 	"os"
 	"os/signal"
 	"syscall"
 
 	"github.com/confluentinc/confluent-kafka-go/v2/kafka"
-	"github.com/confluentinc/confluent-kafka-go/v2/schemaregistry"
-	"github.com/confluentinc/confluent-kafka-go/v2/schemaregistry/serde"
-	"github.com/confluentinc/confluent-kafka-go/v2/schemaregistry/serde/jsonschema"
 )
+
+// Пользователь, информацию о котором будем считывать консьюмером
+type User struct {
+	Name           string `json:"name"`
+	FavoriteNumber int64  `json:"favorite_number"`
+	FavoriteColor  string `json:"favorite_color"`
+}
 
 func main() {
 
-	if len(os.Args) < 5 {
-		fmt.Fprintf(os.Stderr, "Usage: %s <bootstrap-servers> <schema-registry> <group> <topics..>\n",
+	if len(os.Args) < 4 {
+		log.Fatalf("Пример использования:: %s <bootstrap-servers> <group> <topics..>\n",
 			os.Args[0])
-		os.Exit(1)
 	}
-
+	// Парсим параметы и получаем адрес брокера, группу и имя топиков
 	bootstrapServers := os.Args[1]
-	url := os.Args[2]
-	group := os.Args[3]
-	topics := os.Args[4:]
+	group := os.Args[2]
+	topics := os.Args[3:]
+
+	// Перехватываем сигналы syscall.SIGINT и syscall.SIGTERM для  graceful shutdown
 	sigchan := make(chan os.Signal, 1)
 	signal.Notify(sigchan, syscall.SIGINT, syscall.SIGTERM)
 
+	// Создаем консьюмера
 	c, err := kafka.NewConsumer(&kafka.ConfigMap{
 		"bootstrap.servers":  bootstrapServers,
 		"group.id":           group,
@@ -914,82 +920,108 @@ func main() {
 		"auto.offset.reset":  "earliest"})
 
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to create consumer: %s\n", err)
-		os.Exit(1)
+		log.Fatalf("Невозможно создать консьюмера: %s\n", err)
 	}
 
-	fmt.Printf("Created Consumer %v\n", c)
+	fmt.Printf("Консьюмер создан %v\n", c)
 
-	client, err := schemaregistry.NewClient(schemaregistry.NewConfig(url))
-
-	if err != nil {
-		fmt.Printf("Failed to create schema registry client: %s\n", err)
-		os.Exit(1)
-	}
-
-	deser, err := jsonschema.NewDeserializer(client, serde.ValueSerde, jsonschema.NewDeserializerConfig())
-
-	if err != nil {
-		fmt.Printf("Failed to create deserializer: %s\n", err)
-		os.Exit(1)
-	}
-
+	// Подписываемся на топики, в нашем примере он должен быть только один
 	err = c.SubscribeTopics(topics, nil)
 
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to subscribe to topics: %s\n", err)
-		os.Exit(1)
+		log.Fatalf("Невозможно подписаться на топик: %s\n", err)
 	}
 
 	run := true
-
+	// Запускаем бесконечный цикл
 	for run {
 		select {
+		// Для выхода нажмите ctrl+C
 		case sig := <-sigchan:
-			fmt.Printf("Caught signal %v: terminating\n", sig)
+			fmt.Printf("Передан сигнал %v: приложение останавливается\n", sig)
 			run = false
 		default:
+
+			// Делаем запрос на считывание сообщения из брокера
 			ev := c.Poll(100)
 			if ev == nil {
 				continue
 			}
 
+			// 	Приводим Events к
 			switch e := ev.(type) {
+			// типу *kafka.Message,
 			case *kafka.Message:
 				value := User{}
-				err := deser.DeserializeInto(*e.TopicPartition.Topic, e.Value, &value)
+				err := json.Unmarshal(e.Value, &value)
 				if err != nil {
-					fmt.Printf("Failed to deserialize payload: %s\n", err)
+					fmt.Printf("Ошибка десериализации: %s\n", err)
 				} else {
-					fmt.Printf("%% Message on %s:\n%+v\n", e.TopicPartition, value)
+					fmt.Printf("%% Получено сообщение в топик %s:\n%+v\n", e.TopicPartition, value)
 				}
 				if e.Headers != nil {
-					fmt.Printf("%% Headers: %v\n", e.Headers)
+					fmt.Printf("%% Заголовки: %v\n", e.Headers)
 				}
+			// Ошибке брокера
 			case kafka.Error:
-				// Errors should generally be considered
-				// informational, the client will try to
-				// automatically recover.
+				// Ошибки обычно следует считать
+				// информационными, клиент попытается
+				// автоматически их восстановить.
 				fmt.Fprintf(os.Stderr, "%% Error: %v: %v\n", e.Code(), e)
 			default:
-				fmt.Printf("Ignored %v\n", e)
+				fmt.Printf("Другие события %v\n", e)
 			}
 		}
 	}
-
-	fmt.Printf("Closing consumer\n")
+	// Закрывает потребителя
 	c.Close()
 }
 
-// User is a simple record example
-type User struct {
-	Name           string `json:"name"`
-	FavoriteNumber int64  `json:"favorite_number"`
-	FavoriteColor  string `json:"favorite_color"`
-}
+```
+
+Задание. 
+
+Изучите код консьюмера и напишите команду запуска. 
+
+<br>
+<details> 
+<summary>Ознакомиться с решением (нажмите, чтобы увидеть код)</summary>
+```
+go run main1.go localhost:9094,localhost:9095,localhost:9096 group test_users
+```
+</details>
+ <br>
+
+
+Пример вывода
+
+```
+Консьюмер создан rdkafka#consumer-1
+% Получено сообщение в топик test_users[1]@0:
+{Name:First user FavoriteNumber:42 FavoriteColor:blue}
+% Заголовки: [myTestHeader="header values are binary"]
+% Получено сообщение в топик test_users[1]@1:
+{Name:First user FavoriteNumber:42 FavoriteColor:blue}
+% Заголовки: [myTestHeader="header values are binary"]
+% Получено сообщение в топик test_users[2]@0:
+{Name:First user FavoriteNumber:42 FavoriteColor:blue}
+% Заголовки: [myTestHeader="header values are binary"]
+% Получено сообщение в топик test_users[2]@1:
+{Name:First user FavoriteNumber:42 FavoriteColor:blue}
+% Заголовки: [myTestHeader="header values are binary"]
+% Получено сообщение в топик test_users[0]@0:
+{Name:First user FavoriteNumber:42 FavoriteColor:blue}
+% Заголовки: [myTestHeader="header values are binary"]
+% Получено сообщение в топик test_users[0]@1:
+{Name:First user FavoriteNumber:42 FavoriteColor:blue}
+% Заголовки: [myTestHeader="header values are binary"]
+% Получено сообщение в топик test_users[0]@2:
+{Name:First user FavoriteNumber:42 FavoriteColor:blue}
+% Заголовки: [myTestHeader="header values are binary"]
 ```
 
 Вы, вероятно, заметили, что мы не использовали Schema Registry. В этом введении мы не будем подробно его рассматривать, оставив изучение на самостоятельное освоение. Тем не менее, пример его использования можно найти в example-transaction, где сообщение передается в формате Avro, а дополнительную информацию можно получить из [соответствующих источников](https://habr.com/ru/companies/lenta_utkonos_tech/articles/715298/) и [примеров](https://github.com/confluentinc/confluent-kafka-go/tree/master/examples)
+
 
 
 ## Брокеры сообщений
