@@ -1021,6 +1021,7 @@ go run main1.go localhost:9094,localhost:9095,localhost:9096 group test_users
 ```
 
 Задание. 
+
 Во вкладке test_users нажмите на кнопку  Produce Message в правом верхнем углу и отправьте сообщение в топик. Считайте консьюмером данное сообщение.
 
 <br>
