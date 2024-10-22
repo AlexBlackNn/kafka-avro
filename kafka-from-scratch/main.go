@@ -30,17 +30,24 @@ type Order struct {
 	TotalPrice float64 `json:"total_price"`
 }
 
+type orderGenerator struct {
+	orderId   int
+	numOrders int
+}
+
 // generateOrders функция генератор заказов
-func generateOrders(numOrders int) []*Order {
+func (og *orderGenerator) generate() []*Order {
 	// Инициализация генератора случайных чисел, чтобы были повторяемые результаты
 	rand.Seed(0)
 
-	orders := make([]*Order, numOrders)
+	orders := make([]*Order, og.numOrders)
+	k := 0
+	current_order := og.orderId
+	for og.orderId < current_order+og.numOrders {
 
-	for i := 0; i < numOrders; i++ {
 		// Формируем данные
 
-		orderID := fmt.Sprintf("%04d", i+1)
+		orderID := fmt.Sprintf("%04d", og.orderId)
 		userID := fmt.Sprintf("%05d", rand.Intn(100000))
 
 		// Генерируем случайное кол-во товаров от 1 до 5
@@ -60,13 +67,14 @@ func generateOrders(numOrders int) []*Order {
 			}
 			totalPrice += price * float64(quantity) // Суммируем общую стоимость
 		}
-
-		orders[i] = &Order{
+		orders[k] = &Order{
 			OrderID:    orderID,
 			UserID:     userID,
 			Items:      items,
 			TotalPrice: totalPrice,
 		}
+		k++
+		og.orderId++
 	}
 
 	return orders
@@ -86,18 +94,17 @@ func main() {
 
 }
 
+// produce - имулирует работу продюсера
 func produce(wg *sync.WaitGroup, lock *sync.Mutex) {
 	defer wg.Done()
+	ordGenerator := orderGenerator{numOrders: productNum}
 	for {
 		// Получаем слайс случайных заказов
-		orders := generateOrders(productNum)
-		// защищаем общие данные и участки кода от одновременного доступа.
-		lock.Lock()
-		// Открываем файл в режиме добавления
-		file, err := os.OpenFile("orders.json", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-		if err != nil {
-			log.Fatalln("Ошибка при открытии файла:", err)
-		}
+
+		orders := ordGenerator.generate()
+
+		var jsons []byte
+
 		for _, order := range orders {
 			// Сериализуем объект заказа в JSON
 			orderJSON, err := json.Marshal(order)
@@ -107,38 +114,48 @@ func produce(wg *sync.WaitGroup, lock *sync.Mutex) {
 
 			// Добавляем новую строку для удобства чтения
 			orderJSON = append(orderJSON, '\n')
-
-			// Записываем JSON в файл
-			if _, err := file.Write(orderJSON); err != nil {
-				log.Fatalln("Ошибка при записи в файл:", err)
-			}
-			log.Println("Заказ успешно записан в файл.")
-
+			jsons = append(jsons, orderJSON...)
 		}
+
+		// защищаем общие данные и участки кода от одновременного доступа.
+		lock.Lock()
+		// Открываем файл в режиме добавления
+		file, err := os.OpenFile("orders.json", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+		if err != nil {
+			log.Fatalln("Ошибка при открытии файла:", err)
+		}
+
+		if _, err := file.Write(jsons); err != nil {
+			log.Fatalln("Ошибка при записи в файл:", err)
+		}
+		log.Println("Заказы успешно записаны в файл.")
+
+		// Закрываем файл и снимаем блокировку.
 		file.Close()
 		lock.Unlock()
+		// Делаем паузу перед следующим добавлением данных
 		time.Sleep(2 * time.Second)
 	}
 }
 
+// consume - имулирует работу консьюмера
 func consume(wg *sync.WaitGroup, lock *sync.Mutex) {
 	defer wg.Done()
 
 	for {
+		// защищаем общие данные и участки кода от одновременного доступа.
 		lock.Lock()
 		// Открываем файл для чтения
 		file, err := os.OpenFile("orders.json", os.O_CREATE|os.O_RDONLY, 0644)
 		if err != nil {
 			log.Fatalln("Ошибка при открытии файла:", err)
 		}
-		defer file.Close()
 
 		// Открываем файл для чтения офсета
 		offsetFile, err := os.OpenFile("offset.txt", os.O_CREATE|os.O_RDWR, 0644)
 		if err != nil {
 			log.Fatalln("Ошибка при открытии файла офсета:", err)
 		}
-		defer offsetFile.Close()
 
 		// Читаем офсет из файла
 		var offset int64
@@ -176,6 +193,10 @@ func consume(wg *sync.WaitGroup, lock *sync.Mutex) {
 		if _, err := fmt.Fprintf(offsetFile, "%d", offset); err != nil {
 			log.Fatalln("Ошибка при записи офсета:", err)
 		}
+		// Закрываем файлы и снимаем блокировку.
+		file.Close()
+		offsetFile.Close()
+
 		lock.Unlock()
 		time.Sleep(2 * time.Second)
 	}
