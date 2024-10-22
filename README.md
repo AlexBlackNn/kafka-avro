@@ -723,101 +723,154 @@ x-kafka-common:
 
 Она характеризуется высокой производительностью, являясь легковесной оберткой вокруг librdkafka, высоко оптимизированного C-клиента.
 
+
 Напишем код продьюсера
 
-```
+```go
+// main.go
 package main
 
 import (
 	"fmt"
+	"log"
 	"os"
 
 	"github.com/confluentinc/confluent-kafka-go/v2/kafka"
-	"github.com/confluentinc/confluent-kafka-go/v2/schemaregistry"
-	"github.com/confluentinc/confluent-kafka-go/v2/schemaregistry/serde"
-	"github.com/confluentinc/confluent-kafka-go/v2/schemaregistry/serde/jsonschema"
+	"github.com/go-jose/go-jose/v4/json"
 )
+
+// Пользовател, информацию о котором будем отправлять от продьюсера консьюмеру
+type User struct {
+	Name           string `json:"name"`
+	FavoriteNumber int64  `json:"favorite_number"`
+	FavoriteColor  string `json:"favorite_color"`
+}
 
 func main() {
 
-	if len(os.Args) != 4 {
-		fmt.Fprintf(os.Stderr, "Usage: %s <bootstrap-servers> <schema-registry> <topic>\n",
-			os.Args[0])
-		os.Exit(1)
+	// Проверяем, что количество параметров при запуске нашей программы ровно 3
+	if len(os.Args) != 3 {
+		log.Fatalf("Пример использования: %s <bootstrap-servers> <topic>\n", os.Args[0])
 	}
 
+	// Парсим параметы и получаем адрес брокера и имя топика
 	bootstrapServers := os.Args[1]
-	url := os.Args[2]
-	topic := os.Args[3]
+	topic := os.Args[2]
 
+	// Создаем продьюсера
 	p, err := kafka.NewProducer(&kafka.ConfigMap{"bootstrap.servers": bootstrapServers})
-
 	if err != nil {
-		fmt.Printf("Failed to create producer: %s\n", err)
-		os.Exit(1)
+		log.Fatalf("Невозможно создать продьюсера: %s\n", err)
 	}
 
-	fmt.Printf("Created Producer %v\n", p)
+	log.Printf("Продьюсер создан %v\n", p)
 
-	client, err := schemaregistry.NewClient(schemaregistry.NewConfig(url))
-
-	if err != nil {
-		fmt.Printf("Failed to create schema registry client: %s\n", err)
-		os.Exit(1)
-	}
-
-	ser, err := jsonschema.NewSerializer(client, serde.ValueSerde, jsonschema.NewSerializerConfig())
-
-	if err != nil {
-		fmt.Printf("Failed to create serializer: %s\n", err)
-		os.Exit(1)
-	}
-
-	// Optional delivery channel, if not specified the Producer object's
-	// .Events channel is used.
+	// Канал доставки событий (информации об отправленном сообщении)
 	deliveryChan := make(chan kafka.Event)
 
-	value := User{
+	// Создаем пользователя, информацию о котором будем отправлять
+	value := &User{
 		Name:           "First user",
 		FavoriteNumber: 42,
 		FavoriteColor:  "blue",
 	}
-	payload, err := ser.Serialize(topic, &value)
+
+	// Сериализуем пользователя
+	payload, err := json.Marshal(value)
 	if err != nil {
-		fmt.Printf("Failed to serialize payload: %s\n", err)
-		os.Exit(1)
+		log.Fatalf("Невозможно сериализовать пользователя: %s\n", err)
 	}
 
+	// Отправляем сообщение в брокер
 	err = p.Produce(&kafka.Message{
 		TopicPartition: kafka.TopicPartition{Topic: &topic, Partition: kafka.PartitionAny},
 		Value:          payload,
 		Headers:        []kafka.Header{{Key: "myTestHeader", Value: []byte("header values are binary")}},
 	}, deliveryChan)
 	if err != nil {
-		fmt.Printf("Produce failed: %v\n", err)
-		os.Exit(1)
+		log.Fatalf("Ошибка при отправке сообщения: %v\n", err)
 	}
 
+	// Ждем информацию об отправленном сообщении. Для простоты сделана синхронная запись.
+	// В реальных проектах ее использование не рекомендуется, так как она снижает пропускную
+	// способность (https://docs.confluent.io/kafka-clients/go/current/overview.html#synchronous-writes)
 	e := <-deliveryChan
+
+	// Приводим Events к типу *kafka.Message, подробнее про Events, можно почитать тут (https://docs.confluent.io/platform/current/clients/confluent-kafka-go/index.html#hdr-Events)
 	m := e.(*kafka.Message)
 
+	// Если возникла ошибка доставки сообщения
 	if m.TopicPartition.Error != nil {
-		fmt.Printf("Delivery failed: %v\n", m.TopicPartition.Error)
+		fmt.Printf("Ошибка доставки сообщения: %v\n", m.TopicPartition.Error)
 	} else {
-		fmt.Printf("Delivered message to topic %s [%d] at offset %v\n",
+		fmt.Printf("Сообщение отправлено в топик %s [%d] офсет %v\n",
 			*m.TopicPartition.Topic, m.TopicPartition.Partition, m.TopicPartition.Offset)
 	}
 
+	// Не забываем закрыть канал доставки событий
 	close(deliveryChan)
 }
-
-// User is a simple record example
-type User struct {
-	Name           string `json:"name"`
-	FavoriteNumber int64  `json:"favorite_number"`
-	FavoriteColor  string `json:"favorite_color"`
-}
 ```
+
+Но прежде чем отправить данные в kafka, нам необходимо подготовиться. Создание топиков автоматически при отправке данных может привести к серьезным проблемам, так как в этом случае невозможно задать необходимые параметры репликации и другие важные настройки. Автоматическое создание топиков часто приводит к тому, что они создаются с настройками по умолчанию, которые могут не соответствовать требованиям конкретного приложения или системы. Это может негативно сказаться на производительности, надежности и безопасности данных. Поэтому рекомендуется создавать топики отдельно, заранее определяя и настраивая все необходимые параметры, чтобы обеспечить оптимальную работу системы и избежать потенциальных проблем в будущем. А также это отличная возможность порабоать с интерфейсом взаимодействия, про который мы говорили в секции  "Порядок установки и настройки кластера локально с использованием Docker". 
+
+1. Перейдите по [ссылке](http://localhost:8080/). Перед вами графический интерфейс для взаимодейсвтия с kafka. 
+![главная страница](commands/docs/main_page.png)
+
+2. В левом углу верхнем углу нажмите на вкладку Topics и заполните поля в соответствии с изображением.
+![Настройка топика](commands/docs/set_topic.png)
+
+Рассмотрим ряд настроек и продолжим вводить важные понятия: 
+
+*Название топика* - test_users
+
+*Количество партиций (Number of partitions)* определяет на сколько частей будет разделен конкретный топик. 
+
+*Фактор репликации (Replication Factor)* в Kafka определяет, сколько копий каждой партиции, содержащей сообщения, будет храниться в системе. Если этот параметр установлен в единицу, то каждая партиция и все её сообщения будут находиться только на одном брокере, что не очень то хорошо, ведь в случае сбоя этого брокера все данные в данной партиции окажутся недоступными. Поэтому для обеспечения надежности системы важно устанавливать фактор репликации не менее 2. 
+
+Параметр * Минимальное количество синхронных реплик (min-in-sync-replicas)* определяет минимальное количество реплик, которые должны подтвердить запись, прежде чем она будет признана успешной. Например, если у вас три реплики (*фактор репликации* равен 3) и *min-in-sync-replicas* установлен на 2, то запись будет считаться успешной только после того, как две реплики  получат сообщение.
+Если данный параметр слишком высок, то запись может быть медленной, так как нужно ждать подтверждения от большего числа реплик. 
+С другой стороны, слишком низкое значение может снизить надежность. Поэтому важно подобрать оптимальное значение, которое обеспечит как производительность, так и надежность. 
+
+<br>
+<details> 
+<summary>Интересный факт (Нажми, чтобы прочитать)</summary>
+Подробнее про проблемы связанные с репликацией данных можно прочитать в главе 5 книги "Высоконагруженные приложения. Программирование, масштабирование, поддержка" Мартина Клеппмана"
+</details>
+ <br>
+
+*Политика очистки* определяет, что происходит с записями, превышающими установленный срок хранения или размер. В нашем случае выбрана политика "delete", что означает удаление устаревших записей. Альтернативная политика "compact" сохраняет только последнюю запись для каждого уникального ключа, что полезно для сохранения актуального состояния данных.
+
+Параметр "время хранения данных" (Time to retain) устанавливает период, в течение которого данные хранятся на сервере, прежде чем будут удалены. Мы установили его на 86400000 мс (одни сутки).
+
+Также существует параметр "retention.bytes", который определяет максимальный размер данных в партиции, после превышения которого старые данные начинают удаляться. Но, ее не часто используют, тогда время хранения данных будет не детерменированным.
+
+Настало время запустить код продьюсера!
+
+Задание. 
+
+Изучите код продьюсера и напишите команду запуска. 
+
+<br>
+<details> 
+<summary>Ознакомиться с решением (нажмите, чтобы увидеть код)</summary>
+```
+go run main.go localhost:9094,localhost:9095,localhost:9096  test_users
+```
+</details>
+ <br>
+
+
+Вывод в консоль должен выглядить примерно так:
+
+```
+2024/10/22 23:21:43 Created Producer rdkafka#producer-1
+Delivered message to topic test_users [1] at offset 1
+```
+
+Отправьте сообщения несколько раз, а затем откройте графический интерфейс для работы с Kafka. В главном окне кликните на название топика "test_users" и перейдите на вкладку "Messages", где вы сможете увидеть отправленные сообщения.
+![отправленные сообщения](commands/docs/send_mes.png)
+
 
 и код консьюмера
 ```

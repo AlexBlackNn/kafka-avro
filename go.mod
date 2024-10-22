@@ -5,6 +5,7 @@ go 1.22
 require (
 	github.com/actgardner/gogen-avro/v10 v10.2.1
 	github.com/confluentinc/confluent-kafka-go/v2 v2.6.0
+	github.com/go-jose/go-jose/v4 v4.0.4
 	github.com/ilyakaznacheev/cleanenv v1.5.0
 	go.opentelemetry.io/otel v1.31.0
 	golang.org/x/exp v0.0.0-20240112132812-db7319d0e0e3
