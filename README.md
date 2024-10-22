@@ -224,43 +224,15 @@ func consume(wg *sync.WaitGroup) {
 <br>
 <details> 
 <summary>Подсказка: работа с офсетом консьюмера  (нажмите, чтобы увидеть код)</summary>
-
+	Используйте файл для хранения офсетов
+	
 ```go
 	// Открываем файл для чтения офсета
 	offsetFile, err := os.OpenFile("offset.txt", os.O_CREATE|os.O_RDWR, 0644)
-	if err != nil {
-		log.Fatalln("Ошибка при открытии файла офсета:", err)
-	}
-	defer offsetFile.Close()
-
-	// Читаем офсет из файла
-	var offset int64
-	if _, err := fmt.Fscanf(offsetFile, "%d", &offset); err != nil && err.Error() != "EOF" {
-		log.Fatalln("Ошибка при чтении офсета:", err)
-	}
-
-	// Устанавливаем офсет для чтения
-	_, err = file.Seek(offset, 0)
-	if err != nil {
-		log.Fatalln("Ошибка при установке офсета:", err)
-	}
-
-	// 
- 	// Код работы с данными из импровизированного брокера
-	//
-	
-	// Обновляем офсет
+```
+ Для получения офсета и его применения можно использовать функцию [Seek](https://gobyexample.com.ru/reading-files)
+```go
 	offset, err = file.Seek(0, io.SeekCurrent)
-	if err != nil {
-	log.Fatalln("Ошибка при получении текущего офсета:", err)
-	}
-
-	// Записываем новый офсет в файл
-	offsetFile.Truncate(0) // Очищаем файл
-	offsetFile.Seek(0, 0)  // Возвращаемся в начало файла
-	if _, err := fmt.Fprintf(offsetFile, "%d", offset); err != nil {
-		log.Fatalln("Ошибка при записи офсета:", err)
-	}
 ```
 
 </details> 
@@ -535,11 +507,9 @@ Kafka гарантирует, что любой потребитель для к
 
 Принцип расчета хэша от ключа зависит от языка разработки. В частности, Java-библиотека для продюсеров Kafka для вычисления хэш-значения ключа партиционирования использует 32-битный алгоритм хэширования [murmur2](https://ru.wikipedia.org/wiki/MurmurHash2). Это простая и быстрая хеш-функция общего назначения, разработанная Остином Эпплби. Она не является криптографически-безопасной и возвращает 32-разрядное беззнаковое число. Ее главными достоинствами является простота, хорошее распределение, мощный лавинный эффект, высокая скорость и сравнительно высокая устойчивость к коллизиям. 
 
-Однако, далеко не все разработчики используют Java для создания продюсеров Kafka. Мы, в частонсти, используем язык программирования Go в наших примерах. В раде реализаций библиотек для работы с Kafka на ЯП Python, [Go](https://github.com/confluentinc/confluent-kafka-go) , .NET, C# может использоваться библиотека [librdkafka](https://github.com/confluentinc/librdkafka) (написанная на С++). Она предоставляет высокопроизводительную, легкую и многофункциональную реализацию протокола Kafka, позволяя клиентским приложениям взаимодействовать с кластерами Kafka.
+Однако, далеко не все разработчики используют Java для создания продюсеров Kafka. Мы, в частонсти, используем язык программирования Go в наших примерах. В раде реализаций библиотек для работы с Kafka на ЯП Python, [Go](https://github.com/confluentinc/confluent-kafka-go) , .NET, C# может использоваться библиотека [librdkafka](https://github.com/confluentinc/librdkafka) (написанная на С). Она предоставляет высокопроизводительную, легкую и многофункциональную реализацию протокола Kafka, позволяя клиентским приложениям взаимодействовать с кластерами Kafka.
 
-librdkafka по умолчанию использует другой алгоритм хэширования — CRC32 — 32-битная циклическая проверка контрольной суммы (Cyclic Redundancy Check). Этот алгоритм представляет собой способ цифровой идентификации некоторой последовательности данных, который заключается в вычислении контрольного значения её циклического избыточного кода. Подробнее [тут](https://www.confluent.io/blog/standardized-hashing-across-java-and-non-java-producers/). Мы попозже еще вернемся к использованию Go библиотеки для организации связи между продюсером и писателем.  
-
-Давайте перейдем к практике и закрепим полученне знания из теории. Для начала нам надо разобраться с инфраструктурой. 
+librdkafka по умолчанию использует другой алгоритм хэширования — CRC32 — 32-битная циклическая проверка контрольной суммы (Cyclic Redundancy Check). Этот алгоритм представляет собой способ цифровой идентификации некоторой последовательности данных, который заключается в вычислении контрольного значения её циклического избыточного кода. Подробнее [тут](https://www.confluent.io/blog/standardized-hashing-across-java-and-non-java-producers/). Мы попозже еще вернемся к использованию Go библиотеки для передачи данных  между писателем и читателем, а пока давайте разберемся с инфраструктурой. 
 
 
 ## Порядок установки и настройки кластера локально с использованием Docker
@@ -671,7 +641,7 @@ a65bf04f14b8   bitnami/kafka:3.7               "/opt/bitnami/script…"   21 sec
 ```
 
 
-Рассмотрим, фрагмент кода из docker-compose.yaml 
+Познакомимся подробнее с `docker-compose.yaml` файлом. Рассмотрим, фрагмент:
 
 ```yaml
 x-kafka-common:
@@ -691,12 +661,12 @@ x-kafka-common:
       - proxynet
 ``` 
 
-Данный фрагмент кода представляет собой конфигурацию для контейнера Apache Kafka, использующего образ bitnami/kafka:3.7. Он определяет общие параметры, которые будут применяться ко всем экземплярам Kafka в кластере. В частности, здесь настраиваются такие важные параметры, как включение режима KRaft (Kafka Raft)  https://habr.com/ru/companies/slurm/articles/685694/ и https://raft.github.io/, который позволяет Kafka работать без Zookeeper, а также параметры безопасности и сетевого взаимодействия.
+Данный фрагмент кода представляет собой описание конфигурации Apache Kafka, использующего образ bitnami/kafka:3.7. Он определяет общие параметры, которые будут применяться ко всем экземплярам Kafka в кластере. В частности, здесь настраиваются такие важные параметры, как включение режима KRaft (Kafka Raft)  https://habr.com/ru/companies/slurm/articles/685694/ и https://raft.github.io/, который позволяет Kafka работать без Zookeeper, а также параметры безопасности и сетевого взаимодействия.
 
-Конфигурация включает в себя установку идентификатора кластера, настройку протоколов безопасности для различных слушателей, а также определение ролей для каждого экземпляра Kafka (брокер и контроллер). Кроме того, параметр KAFKA_CFG_AUTO_CREATE_TOPICS_ENABLE отключает автоматическое создание тем, что позволяет более точно управлять структурой данных в кластере. Все эти настройки обеспечивают согласованность и надежность работы кластера Kafka, а также его интеграцию в сеть proxynet.
+Конфигурация включает в себя установку идентификатора кластера (KAFKA_KRAFT_CLUSTER_ID), настройку протоколов безопасности для различных слушателей, а также определение ролей для каждого экземпляра Kafka (KAFKA_CFG_PROCESS_ROLES) - брокер и контроллер. Кроме того, параметр KAFKA_CFG_AUTO_CREATE_TOPICS_ENABLE отключает автоматическое создание топиков, что позволяет более точно управлять структурой данных в кластере. Все эти настройки обеспечивают согласованность и надежность работы кластера Kafka, а также его интеграцию в сеть proxynet.
 
 
-Для подключения интерфейса для взаимодействия с Kafka добавим следующий [код](https://habr.com/ru/articles/753398/) :
+Следующий фрагмент кода используется для подключения [интерфейса взаимодействия](https://habr.com/ru/articles/753398/) с Kafka  :
 
 ```
   ui:
@@ -712,7 +682,258 @@ x-kafka-common:
 ```
 
 
+Для Управление схемами данных, которые используются при сериализации и десериализации сообщений в Kafka (позволяет обеспечить согласованность данных между производителями и потребителями) испольузется Schema Registry (SR). SR  поддерживает различные форматы сериализации, такие как Avro, JSON и Protobuf.  
+В приведенной конфигурации Schema Registry настраивается для работы с тремя брокерами Kafka (kafka-0, kafka-1 и kafka-2) и слушает запросы на порту 8081. Это позволяет другим сервисам взаимодействовать с Schema Registry для получения и регистрации схем.
 
+```yaml
+  schema-registry:
+    image: bitnami/schema-registry:7.6
+    ports:
+      - '8081:8081'
+    depends_on:
+      - kafka-0
+      - kafka-1
+      - kafka-2
+    environment:
+      SCHEMA_REGISTRY_LISTENERS: http://0.0.0.0:8081
+      SCHEMA_REGISTRY_KAFKA_BROKERS: PLAINTEXT://kafka-0:9092,PLAINTEXT://kafka-1:9092,PLAINTEXT://kafka-2:9092
+    networks:
+      - proxynet
+```
+
+Конфигурация kafka-1 описывает один из брокеров Kafka, который является частью кластера, состоящего из трех брокеров.
+
+```yaml
+  kafka-1:
+    <<: *kafka-common
+    restart: always
+    ports:
+      - "127.0.0.1:9095:9095"
+    environment:
+      <<: *kafka-common-env
+      KAFKA_CFG_NODE_ID: 1
+      KAFKA_CFG_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093,EXTERNAL://:9095
+      KAFKA_CFG_ADVERTISED_LISTENERS: PLAINTEXT://kafka-1:9092,EXTERNAL://127.0.0.1:9095
+    volumes:
+      - kafka_1_data:/bitnami/kafka
+```
+
+## Пример передачи данных от писателя читателю
+Как мы и обещали, возвращаемся к использованию Go библиотеки для передачи данных  между писателем и читателем. Для организации такого взаимодействия будем использовать библиотеку confluent-kafka-go от компании Confluent. 
+
+Она характеризуется высокой производительностью, являясь легковесной оберткой вокруг librdkafka, высоко оптимизированного C-клиента.
+
+Напишем код продьюсера
+
+```
+package main
+
+import (
+	"fmt"
+	"os"
+
+	"github.com/confluentinc/confluent-kafka-go/v2/kafka"
+	"github.com/confluentinc/confluent-kafka-go/v2/schemaregistry"
+	"github.com/confluentinc/confluent-kafka-go/v2/schemaregistry/serde"
+	"github.com/confluentinc/confluent-kafka-go/v2/schemaregistry/serde/jsonschema"
+)
+
+func main() {
+
+	if len(os.Args) != 4 {
+		fmt.Fprintf(os.Stderr, "Usage: %s <bootstrap-servers> <schema-registry> <topic>\n",
+			os.Args[0])
+		os.Exit(1)
+	}
+
+	bootstrapServers := os.Args[1]
+	url := os.Args[2]
+	topic := os.Args[3]
+
+	p, err := kafka.NewProducer(&kafka.ConfigMap{"bootstrap.servers": bootstrapServers})
+
+	if err != nil {
+		fmt.Printf("Failed to create producer: %s\n", err)
+		os.Exit(1)
+	}
+
+	fmt.Printf("Created Producer %v\n", p)
+
+	client, err := schemaregistry.NewClient(schemaregistry.NewConfig(url))
+
+	if err != nil {
+		fmt.Printf("Failed to create schema registry client: %s\n", err)
+		os.Exit(1)
+	}
+
+	ser, err := jsonschema.NewSerializer(client, serde.ValueSerde, jsonschema.NewSerializerConfig())
+
+	if err != nil {
+		fmt.Printf("Failed to create serializer: %s\n", err)
+		os.Exit(1)
+	}
+
+	// Optional delivery channel, if not specified the Producer object's
+	// .Events channel is used.
+	deliveryChan := make(chan kafka.Event)
+
+	value := User{
+		Name:           "First user",
+		FavoriteNumber: 42,
+		FavoriteColor:  "blue",
+	}
+	payload, err := ser.Serialize(topic, &value)
+	if err != nil {
+		fmt.Printf("Failed to serialize payload: %s\n", err)
+		os.Exit(1)
+	}
+
+	err = p.Produce(&kafka.Message{
+		TopicPartition: kafka.TopicPartition{Topic: &topic, Partition: kafka.PartitionAny},
+		Value:          payload,
+		Headers:        []kafka.Header{{Key: "myTestHeader", Value: []byte("header values are binary")}},
+	}, deliveryChan)
+	if err != nil {
+		fmt.Printf("Produce failed: %v\n", err)
+		os.Exit(1)
+	}
+
+	e := <-deliveryChan
+	m := e.(*kafka.Message)
+
+	if m.TopicPartition.Error != nil {
+		fmt.Printf("Delivery failed: %v\n", m.TopicPartition.Error)
+	} else {
+		fmt.Printf("Delivered message to topic %s [%d] at offset %v\n",
+			*m.TopicPartition.Topic, m.TopicPartition.Partition, m.TopicPartition.Offset)
+	}
+
+	close(deliveryChan)
+}
+
+// User is a simple record example
+type User struct {
+	Name           string `json:"name"`
+	FavoriteNumber int64  `json:"favorite_number"`
+	FavoriteColor  string `json:"favorite_color"`
+}
+```
+
+и код консьюмера
+```
+package main
+
+// consumer_example implements a consumer using the non-channel Poll() API
+// to retrieve messages and events.
+
+import (
+	"fmt"
+	"os"
+	"os/signal"
+	"syscall"
+
+	"github.com/confluentinc/confluent-kafka-go/v2/kafka"
+	"github.com/confluentinc/confluent-kafka-go/v2/schemaregistry"
+	"github.com/confluentinc/confluent-kafka-go/v2/schemaregistry/serde"
+	"github.com/confluentinc/confluent-kafka-go/v2/schemaregistry/serde/jsonschema"
+)
+
+func main() {
+
+	if len(os.Args) < 5 {
+		fmt.Fprintf(os.Stderr, "Usage: %s <bootstrap-servers> <schema-registry> <group> <topics..>\n",
+			os.Args[0])
+		os.Exit(1)
+	}
+
+	bootstrapServers := os.Args[1]
+	url := os.Args[2]
+	group := os.Args[3]
+	topics := os.Args[4:]
+	sigchan := make(chan os.Signal, 1)
+	signal.Notify(sigchan, syscall.SIGINT, syscall.SIGTERM)
+
+	c, err := kafka.NewConsumer(&kafka.ConfigMap{
+		"bootstrap.servers":  bootstrapServers,
+		"group.id":           group,
+		"session.timeout.ms": 6000,
+		"auto.offset.reset":  "earliest"})
+
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to create consumer: %s\n", err)
+		os.Exit(1)
+	}
+
+	fmt.Printf("Created Consumer %v\n", c)
+
+	client, err := schemaregistry.NewClient(schemaregistry.NewConfig(url))
+
+	if err != nil {
+		fmt.Printf("Failed to create schema registry client: %s\n", err)
+		os.Exit(1)
+	}
+
+	deser, err := jsonschema.NewDeserializer(client, serde.ValueSerde, jsonschema.NewDeserializerConfig())
+
+	if err != nil {
+		fmt.Printf("Failed to create deserializer: %s\n", err)
+		os.Exit(1)
+	}
+
+	err = c.SubscribeTopics(topics, nil)
+
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to subscribe to topics: %s\n", err)
+		os.Exit(1)
+	}
+
+	run := true
+
+	for run {
+		select {
+		case sig := <-sigchan:
+			fmt.Printf("Caught signal %v: terminating\n", sig)
+			run = false
+		default:
+			ev := c.Poll(100)
+			if ev == nil {
+				continue
+			}
+
+			switch e := ev.(type) {
+			case *kafka.Message:
+				value := User{}
+				err := deser.DeserializeInto(*e.TopicPartition.Topic, e.Value, &value)
+				if err != nil {
+					fmt.Printf("Failed to deserialize payload: %s\n", err)
+				} else {
+					fmt.Printf("%% Message on %s:\n%+v\n", e.TopicPartition, value)
+				}
+				if e.Headers != nil {
+					fmt.Printf("%% Headers: %v\n", e.Headers)
+				}
+			case kafka.Error:
+				// Errors should generally be considered
+				// informational, the client will try to
+				// automatically recover.
+				fmt.Fprintf(os.Stderr, "%% Error: %v: %v\n", e.Code(), e)
+			default:
+				fmt.Printf("Ignored %v\n", e)
+			}
+		}
+	}
+
+	fmt.Printf("Closing consumer\n")
+	c.Close()
+}
+
+// User is a simple record example
+type User struct {
+	Name           string `json:"name"`
+	FavoriteNumber int64  `json:"favorite_number"`
+	FavoriteColor  string `json:"favorite_color"`
+}
+```
 
 
 ## Брокеры сообщений
