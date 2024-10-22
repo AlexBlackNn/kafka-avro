@@ -1022,12 +1022,14 @@ go run main1.go localhost:9094,localhost:9095,localhost:9096 group test_users
 
 Задание. 
 
+![Отправка сообщения](commands/docs/prod_mes.png)
+
 Во вкладке test_users нажмите на кнопку  Produce Message в правом верхнем углу и отправьте сообщение в топик. Считайте консьюмером данное сообщение.
 
 <br>
 <details> 
 <summary>Подсказка, пример сообщения (нажмите, чтобы увидеть код)</summary>
-```
+```json
 {
 	"name": "First user",
 	"favorite_number": 42,
