@@ -1098,8 +1098,13 @@ ___
 
 ![alt text](commands/docs/cons_off.png)
 
+_____
+
+### Задание. 
+
 Вы, вероятно, заметили, что мы не использовали Schema Registry. В этом введении мы не будем подробно его рассматривать, оставив изучение на самостоятельное освоение. Тем не менее, пример его использования можно найти в example-transaction, где сообщение передается в формате Avro, а дополнительную информацию можно получить из [соответствующих источников](https://habr.com/ru/companies/lenta_utkonos_tech/articles/715298/) и [примеров](https://github.com/confluentinc/confluent-kafka-go/tree/master/examples)
 
+_____
 
 
 ## Брокеры сообщений. Сравнение RabbitMQ с Kafka
