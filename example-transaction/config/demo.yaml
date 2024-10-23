@@ -1,4 +1,0 @@
-env: "demo" 
-kafka:
-  kafkaUrl: "kafka-0:9092"
-  schemaRegistryURL: "http://schema-registry:8081"

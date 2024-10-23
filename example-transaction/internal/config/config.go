@@ -18,6 +18,7 @@ type KafkaConfig struct {
 	KafkaURL          string `yaml:"kafkaUrl" env-required:"true"`
 	SchemaRegistryURL string `yaml:"schemaRegistryURL" env-required:"true"`
 	Type              string
+	Topic             string `yaml:"topic" env-required:"true"`
 }
 
 type Config struct {

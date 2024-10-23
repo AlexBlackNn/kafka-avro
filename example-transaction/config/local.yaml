@@ -2,3 +2,4 @@ env: "local"
 kafka:
   kafkaUrl: "localhost:9094"
   schemaRegistryURL: "http://localhost:8081"
+  topic: "users"

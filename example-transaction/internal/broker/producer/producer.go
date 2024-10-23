@@ -55,7 +55,7 @@ func New(cfg *config.Config, log *slog.Logger) (*Broker, error) {
 						log.Error("sending message finished with failure", "err", e.TopicPartition.Error, "key", string(e.Key))
 						continue
 					}
-					log.Info("sending message finished with success ", "key", string(e.Key))
+					log.Debug("sending message finished with success ", "key", string(e.Key))
 				case kafka.Error:
 					// Generic client instance-level errors, such as
 					// broker connection failures, authentication issues, etc.
