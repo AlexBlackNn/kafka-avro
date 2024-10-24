@@ -881,7 +881,7 @@ func main() {
 		TotalPrice: 500.00,
 	}
 
-	// Сериализуем заказ в массив
+	// Сериализуем заказ
 	payload, err := json.Marshal(value)
 	if err != nil {
 		log.Fatalf("Невозможно сериализовать заказ: %s\n", err)
@@ -970,9 +970,11 @@ ___
 <br>
 <details> 
 <summary>Ознакомиться с решением (нажмите, чтобы увидеть код)</summary>
-```
+
+```bash
 go run main.go localhost:9094,localhost:9095,localhost:9096  orders
 ```
+
 </details>
  <br>
 
@@ -1111,9 +1113,11 @@ ___
 <br>
 <details> 
 <summary>Ознакомиться с решением (нажмите, чтобы увидеть код)</summary>
-```
+
+```bash
 go run main.go localhost:9094,localhost:9095,localhost:9096 group orders
 ```
+
 </details>
  <br>
 
