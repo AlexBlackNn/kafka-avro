@@ -63,7 +63,7 @@ cd ../infra && docker compose up -d
     ```
 
    Примерный вывод программы и действия пользователя 
-   ```bash
+   ```
    go run ./cmd/main.go -c ./config/local.yaml -t producer
    2024/10/24 14:30:52 application starts with cfg -> type: producer, env: local, kafka url localhost:9094,localhost:9095,localhost:9096, schema registry url http://localhost:8081 
    time=2024-10-24T14:30:52.822+03:00 level=INFO source=/home/alex/Dev/2/kafka-avro/avro-example/app/producer/app.go:41 msg="producer starts"
