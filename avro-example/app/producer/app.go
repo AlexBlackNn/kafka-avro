@@ -7,9 +7,9 @@ import (
 	"log"
 	"log/slog"
 
-	"github.com/AlexBlackNn/kafka-avro/example-transaction/internal/broker/producer"
-	"github.com/AlexBlackNn/kafka-avro/example-transaction/internal/config"
-	"github.com/AlexBlackNn/kafka-avro/example-transaction/internal/dto"
+	"github.com/AlexBlackNn/kafka-avro/avro-example/internal/broker/producer"
+	"github.com/AlexBlackNn/kafka-avro/avro-example/internal/config"
+	"github.com/AlexBlackNn/kafka-avro/avro-example/internal/dto"
 )
 
 type sendCloser interface {
@@ -74,20 +74,25 @@ func (a *App) readInput() (*dto.User, error) {
 		favoriteColor  string
 		command        string
 	)
+	for {
+		fmt.Print("Command: ")
+		_, err := fmt.Scanln(&command)
+		if err != nil {
+			a.log.Error(err.Error())
+			return nil, errors.New("reading command failed")
+		}
 
-	fmt.Print("Command: ")
-	_, err := fmt.Scanln(&command)
-	if err != nil {
-		a.log.Error(err.Error())
-		return nil, errors.New("reading command failed")
-	}
-
-	if command == "exit" {
-		return nil, errors.New("terminate")
+		if command == "exit" {
+			return nil, errors.New("terminate")
+		}
+		if command == "send" {
+			break
+		}
+		a.log.Info("Введите команду exit для выхода или send для отправки сообщений")
 	}
 
 	fmt.Print("Enter name: ")
-	_, err = fmt.Scanln(&name)
+	_, err := fmt.Scanln(&name)
 	if err != nil {
 		a.log.Error(err.Error())
 		return nil, errors.New("reading name failed")

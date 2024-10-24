@@ -4,10 +4,10 @@ import (
 	"context"
 	"errors"
 
-	"github.com/AlexBlackNn/kafka-avro/example-transaction/app/consumer"
-	"github.com/AlexBlackNn/kafka-avro/example-transaction/app/producer"
-	"github.com/AlexBlackNn/kafka-avro/example-transaction/internal/config"
-	"github.com/AlexBlackNn/kafka-avro/example-transaction/internal/logger"
+	"github.com/AlexBlackNn/kafka-avro/avro-example/app/consumer"
+	"github.com/AlexBlackNn/kafka-avro/avro-example/app/producer"
+	"github.com/AlexBlackNn/kafka-avro/avro-example/internal/config"
+	"github.com/AlexBlackNn/kafka-avro/avro-example/internal/logger"
 )
 
 var ErrWrongType = errors.New("wrong type")

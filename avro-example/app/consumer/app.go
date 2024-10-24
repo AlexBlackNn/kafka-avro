@@ -6,8 +6,8 @@ import (
 	"log/slog"
 	"time"
 
-	consumer "github.com/AlexBlackNn/kafka-avro/example-transaction/internal/broker/consumer"
-	"github.com/AlexBlackNn/kafka-avro/example-transaction/internal/config"
+	consumer "github.com/AlexBlackNn/kafka-avro/avro-example/internal/broker/consumer"
+	"github.com/AlexBlackNn/kafka-avro/avro-example/internal/config"
 )
 
 type consumeCloser interface {

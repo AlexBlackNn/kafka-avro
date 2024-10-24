@@ -6,7 +6,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/AlexBlackNn/kafka-avro/example-transaction/app"
+	"github.com/AlexBlackNn/kafka-avro/avro-example/app"
 )
 
 func main() {

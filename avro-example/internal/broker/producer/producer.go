@@ -3,8 +3,8 @@ package producer
 import (
 	"log/slog"
 
-	"github.com/AlexBlackNn/kafka-avro/example-transaction/internal/config"
-	"github.com/AlexBlackNn/kafka-avro/example-transaction/internal/dto"
+	"github.com/AlexBlackNn/kafka-avro/avro-example/internal/config"
+	"github.com/AlexBlackNn/kafka-avro/avro-example/internal/dto"
 	"github.com/confluentinc/confluent-kafka-go/v2/kafka"
 	"github.com/confluentinc/confluent-kafka-go/v2/schemaregistry"
 	"github.com/confluentinc/confluent-kafka-go/v2/schemaregistry/serde"
