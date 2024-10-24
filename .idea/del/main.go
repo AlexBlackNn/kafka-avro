@@ -6,19 +6,22 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/confluentinc/confluent-kafka-go/v2/kafka"
 )
 
-// Item - структура описывающая продукт в заказе
+// Item - структура, описывающая продукт в заказе
 type Item struct {
 	ProductID string  `json:"product_id"`
 	Quantity  int     `json:"quantity"`
 	Price     float64 `json:"price"`
 }
 
-// Order - структура описывающая заказ с продуктами
+// Order - структура, описывающая заказ с продуктами
 type Order struct {
+	Offset     int     `json:"offset"`
 	OrderID    string  `json:"order_id"`
 	UserID     string  `json:"user_id"`
 	Items      []Item  `json:"items"`
@@ -27,70 +30,80 @@ type Order struct {
 
 func main() {
 
-	// Проверяем, что количество параметров при запуске нашей программы ровно 3
-	if len(os.Args) != 3 {
-		log.Fatalf("Пример использования: %s <bootstrap-servers> <topic>\n", os.Args[0])
+	if len(os.Args) < 4 {
+		log.Fatalf("Пример использования: %s <bootstrap-servers> <group> <topics..>\n",
+			os.Args[0])
 	}
-
-	// Парсим параметы и получаем адрес брокера и имя топика
+	// Парсим параметы и получаем адрес брокера, группу и имя топиков
 	bootstrapServers := os.Args[1]
-	topic := os.Args[2]
+	group := os.Args[2]
+	topics := os.Args[3:]
 
-	// Создаем продьюсера
-	p, err := kafka.NewProducer(&kafka.ConfigMap{"bootstrap.servers": bootstrapServers})
+	// Перехватываем сигналы syscall.SIGINT и syscall.SIGTERM для graceful shutdown
+	sigchan := make(chan os.Signal, 1)
+	signal.Notify(sigchan, syscall.SIGINT, syscall.SIGTERM)
+
+	// Создаем консьюмера
+	c, err := kafka.NewConsumer(&kafka.ConfigMap{
+		"bootstrap.servers":  bootstrapServers,
+		"group.id":           group,
+		"session.timeout.ms": 6000,
+		"auto.offset.reset":  "earliest"})
+
 	if err != nil {
-		log.Fatalf("Невозможно создать продьюсера: %s\n", err)
+		log.Fatalf("Невозможно создать консьюмера: %s\n", err)
 	}
 
-	log.Printf("Продьюсер создан %v\n", p)
+	fmt.Printf("Консьюмер создан %v\n", c)
 
-	// Канал доставки событий (информации об отправленном сообщении)
-	deliveryChan := make(chan kafka.Event)
+	// Подписываемся на топики, в нашем примере он должен быть только один
+	err = c.SubscribeTopics(topics, nil)
 
-	// Создаем заказ
-	value := &Order{
-		OrderID: "0001",
-		UserID:  "00001",
-		Items: []Item{
-			{ProductID: "535", Quantity: 1, Price: 300},
-			{ProductID: "125", Quantity: 2, Price: 100},
-		},
-		TotalPrice: 500.00,
-	}
-
-	// Сериализуем заказ
-	payload, err := json.Marshal(value)
 	if err != nil {
-		log.Fatalf("Невозможно сериализовать заказ: %s\n", err)
+		log.Fatalf("Невозможно подписаться на топик: %s\n", err)
 	}
 
-	// Отправляем сообщение в брокер
-	err = p.Produce(&kafka.Message{
-		TopicPartition: kafka.TopicPartition{Topic: &topic, Partition: kafka.PartitionAny},
-		Value:          payload,
-		Headers:        []kafka.Header{{Key: "myTestHeader", Value: []byte("header values are binary")}},
-	}, deliveryChan)
-	if err != nil {
-		log.Fatalf("Ошибка при отправке сообщения: %v\n", err)
+	run := true
+	// Запускаем бесконечный цикл
+	for run {
+		select {
+		// Для выхода нажмите ctrl+C
+		case sig := <-sigchan:
+			fmt.Printf("Передан сигнал %v: приложение останавливается\n", sig)
+			run = false
+		default:
+
+			// Делаем запрос на считывание сообщения из брокера
+			ev := c.Poll(100)
+			if ev == nil {
+				continue
+			}
+
+			// 	Приводим Events к
+			switch e := ev.(type) {
+			// типу *kafka.Message,
+			case *kafka.Message:
+				value := Order{}
+				err := json.Unmarshal(e.Value, &value)
+				if err != nil {
+					fmt.Printf("Ошибка десериализации: %s\n", err)
+				} else {
+					fmt.Printf("%% Получено сообщение в топик %s:\n%+v\n", e.TopicPartition, value)
+				}
+				if e.Headers != nil {
+					fmt.Printf("%% Заголовки: %v\n", e.Headers)
+				}
+			// типу Ошибки брокера
+			case kafka.Error:
+				// Ошибки обычно следует считать
+				// информационными, клиент попытается
+				// автоматически их восстановить.
+				fmt.Fprintf(os.Stderr, "%% Error: %v: %v\n", e.Code(), e)
+			default:
+				fmt.Printf("Другие события %v\n", e)
+			}
+		}
 	}
-
-	// Ждем информацию об отправленном сообщении. Для простоты сделана синхронная запись.
-	// В реальных проектах ее использование не рекомендуется, так как она снижает пропускную
-	// способность (https://docs.confluent.io/kafka-clients/go/current/overview.html#synchronous-writes)
-	e := <-deliveryChan
-
-	// Приводим Events к типу *kafka.Message, подробнее про Events, можно почитать тут (https://docs.confluent.io/platform/current/clients/confluent-kafka-go/index.html#hdr-Events)
-	m := e.(*kafka.Message)
-
-	// Если возникла ошибка доставки сообщения
-	if m.TopicPartition.Error != nil {
-		fmt.Printf("Ошибка доставки сообщения: %v\n", m.TopicPartition.Error)
-	} else {
-		fmt.Printf("Сообщение отправлено в топик %s [%d] офсет %v\n",
-			*m.TopicPartition.Topic, m.TopicPartition.Partition, m.TopicPartition.Offset)
-	}
-	// Закрываем отправителя
-	p.Close()
-	// Не забываем закрыть канал доставки событий
-	close(deliveryChan)
+	// Закрываем потребителя
+	c.Close()
 }
