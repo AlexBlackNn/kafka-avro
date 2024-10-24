@@ -672,7 +672,7 @@ services:
   schema-registry:
     image: bitnami/schema-registry:7.6
     ports:
-      - '8081:8081'
+      - '127.0.0.1:8081:8081'
     depends_on:
       - kafka-0
       - kafka-1
@@ -780,7 +780,7 @@ Kafka в кластере. В частности, здесь настраива�
   schema-registry:
     image: bitnami/schema-registry:7.6
     ports:
-      - '8081:8081'
+      - '127.0.0.1:8081:8081'
     depends_on:
       - kafka-0
       - kafka-1
