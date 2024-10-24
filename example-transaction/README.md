@@ -1,18 +1,40 @@
-Установите 
-gogen-avro
-Генерирует типобезопасный код Go на основе ваших схем Avro, включая сериализаторы и десериализаторы, которые поддерживают правила эволюции схем Avro. Также поддерживает десериализацию общих данных Avro (в бета-версии).
+## Проект Kafka Avro на Go
 
-gogen-avro --package=kafkapracticum --containers=false --sources-comment=false --short-unions=false /home/user/Dev/kafka-avro/producer/cmd /home/user/Dev/kafka-avro/producer/cmd/user.avsc
+Этот проект демонстрирует работу с Kafka и Avro на языке Go.
 
+### Описание
 
+Код проекта можно скомпилировать в два независимо запускаемых приложений:
+
+* Производитель (Producer): Записывает данные в формате Avro в топик Kafka.
+* Потребитель (Consumer): Считывает данные из топика Kafka и выводит их в консоль. При этом потребитель самостоятельно фиксирует смещения обработанных данных.
+
+### Установка
+
+1. Установите Go с официального сайта: https://go.dev/doc/install
+
+2. Установите требуемые зависимости:
 ```bash
-go run ./cmd/create-topic/main.go localhost:9094 users 3 2
+go mod tidy
 ```
 
+3. Настройте конфигурационный файл (можно оставить без изменений):
+    * `config/local.yaml`: файл конфигурации для подключения к Kafka и установки параметров.
+
+### Запуск
+
+1. Создайте топик:
 ```bash
-go run ./cmd/main.go -c ./config/local.yaml -t producer
+   go run ./cmd/create-topic/main.go localhost:9094 users 3 2
+```
+Параметры `localhost:9094` - адрес Kafka-брокера, `users` - имя топика, `3` - количество партиций, `2` - на количество реплик.
+
+2. Запустите Producer:
+```bash
+    go run ./cmd/main.go -c ./config/local.yaml -t producer
 ```
 
+3. Запустите Consumer:
 ```bash
-go run ./cmd/main.go -c ./config/local.yaml -t consumer
+   go run ./cmd/main.go -c ./config/local.yaml -t consumer
 ```
