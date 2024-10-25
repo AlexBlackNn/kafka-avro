@@ -29,6 +29,8 @@ kafka:
   topic: "users" # Название топика 
 ```
 
+4. Установите [librdkafka](https://github.com/confluentinc/librdkafka#installation)
+
 ### Запуск
 1. Запустите инфраструктуру
 ```bash
